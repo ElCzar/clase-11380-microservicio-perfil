@@ -1,0 +1,23 @@
+spring:
+    application:
+        name: microservicio_perfil
+    security:
+        oauth2:
+            resourceserver:
+                jwt:
+                    issuer-uri: http://localhost:8180/realms/microservices-ecosystem
+                    jwk-set-uri: http://localhost:8180/realms/microservices-ecosystem/protocol/openid-connect/certs
+
+server:
+    port: 8081
+
+# Keycloak Configuration
+keycloak:
+    realm: microservices-ecosystem
+    auth-server-url: http://localhost:8180
+    ssl-required: external
+    resource: perfil-service
+    credentials:
+        secret: XhzE490FVJwoJ3OdLlyyqpDyIaf1lgVe
+    use-resource-role-mappings: true
+    bearer-only: false  # Changed to false since this service handles login
