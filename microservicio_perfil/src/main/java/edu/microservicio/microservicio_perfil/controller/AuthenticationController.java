@@ -1,16 +1,17 @@
 package edu.microservicio.microservicio_perfil.controller;
 
 import edu.microservicio.microservicio_perfil.dto.LoginRequest;
-import edu.microservicio.microservicio_perfil.dto.ProfileDetailsResponse;
 import edu.microservicio.microservicio_perfil.dto.ProviderRegistrationRequest;
 import edu.microservicio.microservicio_perfil.dto.TokenResponse;
+import edu.microservicio.microservicio_perfil.dto.UserDetailsResponse;
 import edu.microservicio.microservicio_perfil.dto.UserRegistrationRequest;
 import edu.microservicio.microservicio_perfil.service.KeycloakService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/auth")
@@ -19,6 +20,11 @@ public class AuthenticationController {
 
     private final KeycloakService keycloakService;
 
+    /**
+     * Get a token from Keycloak
+     * @param credentials
+     * @return
+     */
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest credentials) {
         try {
@@ -29,6 +35,11 @@ public class AuthenticationController {
         }
     }
 
+    /**
+     * Register a normal user in Keycloak
+     * @param user
+     * @return
+     */
     @PostMapping("/register/user")
     public ResponseEntity<String> registerUser(@RequestBody UserRegistrationRequest user) {
         try {
@@ -39,6 +50,11 @@ public class AuthenticationController {
         }
     }
 
+    /**
+     * Register a provider user in Keycloak
+     * @param provider
+     * @return
+     */
     @PostMapping("/register/provider")
     public ResponseEntity<String> registerProvider(@RequestBody ProviderRegistrationRequest provider) {
         try {
@@ -49,61 +65,35 @@ public class AuthenticationController {
         }
     }
 
+    /**
+     * Get profile details of the authenticated user
+     * @param request HTTP request to extract Authorization header
+     * @return ProfileDetailsResponse with user details
+     */
     @GetMapping("/profile")
     @PreAuthorize("hasAnyRole('USER', 'PROVIDER')")
-    public ResponseEntity<ProfileDetailsResponse> getProfileDetails(Authentication authentication) {
-        ProfileDetailsResponse profileDetails = keycloakService.getProfileDetails(authentication.getName());
-        return ResponseEntity.ok(profileDetails);
+    public ResponseEntity<UserDetailsResponse> getProfileDetails(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            UserDetailsResponse userDetails = keycloakService.getProfileDetails(token);
+            return ResponseEntity.ok(userDetails);
+        }
+        return ResponseEntity.badRequest().body(null);
     }
 
-    @GetMapping("/userinfo")
+    /**
+     * Get user details by username
+     * @param username
+     * @return UserDetailsResponse with user details
+     */
+    @GetMapping("/user/{username}")
     @PreAuthorize("hasAnyRole('USER', 'PROVIDER')")
-    public ResponseEntity<ProfileDetailsResponse> getUserInfo(@RequestHeader("Authorization") String authHeader) {
-        try {
-            // Extract token from "Bearer TOKEN" format
-            String token = authHeader.replace("Bearer ", "");
-            ProfileDetailsResponse userInfo = keycloakService.getUserDetailsFromUserInfo(token);
-            return ResponseEntity.ok(userInfo);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(
-                ProfileDetailsResponse.builder()
-                    .message("Failed to get user info: " + e.getMessage())
-                    .build()
-            );
+    public ResponseEntity<UserDetailsResponse> getUserByUsername(@PathVariable String username) {
+        UserDetailsResponse userDetails = keycloakService.getUserProfileByUsername(username);
+        if (userDetails != null) {
+            return ResponseEntity.ok(userDetails);
         }
-    }
-
-    @GetMapping("/token-details")
-    @PreAuthorize("hasAnyRole('USER', 'PROVIDER')")
-    public ResponseEntity<ProfileDetailsResponse> getTokenDetails(@RequestHeader("Authorization") String authHeader) {
-        try {
-            // Extract token from "Bearer TOKEN" format
-            String token = authHeader.replace("Bearer ", "");
-            ProfileDetailsResponse tokenDetails = keycloakService.getUserDetailsFromToken(token);
-            return ResponseEntity.ok(tokenDetails);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(
-                ProfileDetailsResponse.builder()
-                    .message("Failed to get token details: " + e.getMessage())
-                    .build()
-            );
-        }
-    }
-
-    @GetMapping("/introspect")
-    @PreAuthorize("hasAnyRole('USER', 'PROVIDER')")
-    public ResponseEntity<ProfileDetailsResponse> introspectToken(@RequestHeader("Authorization") String authHeader) {
-        try {
-            // Extract token from "Bearer TOKEN" format
-            String token = authHeader.replace("Bearer ", "");
-            ProfileDetailsResponse introspection = keycloakService.introspectToken(token);
-            return ResponseEntity.ok(introspection);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(
-                ProfileDetailsResponse.builder()
-                    .message("Failed to introspect token: " + e.getMessage())
-                    .build()
-            );
-        }
+        return ResponseEntity.notFound().build();
     }
 }

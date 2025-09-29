@@ -1,0 +1,161 @@
+#########################################################################
+# Endpoints for Microservicio Perfil:
+# POST /auth/login                 - Authenticate user
+# POST /auth/register/user         - Register normal user  
+# POST /auth/register/provider     - Register provider user
+# GET  /auth/profile               - Get authenticated user profile
+# GET  /auth/user?email=...        - Get user by email (protected)
+#########################################################################
+
+#########################################################################
+# SECTION 1: USER REGISTRATION TESTS
+#########################################################################
+
+### 1.1: Register a Basic User (with small test image)
+# @name registerUser
+POST http://localhost:8081/auth/register/user
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "testuser@example.com",
+  "firstName": "Test",
+  "lastName": "User",
+  "password": "password123",
+  "age": 25,
+  "photo": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "description": "Test user for authentication testing"
+}
+
+###
+
+### 1.2: Register a Provider (with additional provider fields)
+# @name registerProvider
+POST http://localhost:8081/auth/register/provider
+Content-Type: application/json
+
+{
+  "username": "testprovider",
+  "email": "provider@example.com",
+  "firstName": "Test",
+  "lastName": "Provider",
+  "password": "password123",
+  "age": 30,
+  "photo": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "description": "Test provider for authentication testing",
+  "phone": "+1234567890",
+  "webPage": "https://testprovider.com",
+  "socialMediaContact": "@testprovider"
+}
+
+###
+
+#########################################################################
+# SECTION 2: AUTHENTICATION TESTS
+#########################################################################
+
+### 2.1: Login with Basic User
+# @name loginUser
+POST http://localhost:8081/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "password123"
+}
+
+###
+
+### 2.2: Login with Provider
+# @name loginProvider
+POST http://localhost:8081/auth/login
+Content-Type: application/json
+
+{
+  "username": "testprovider",
+  "password": "password123"
+}
+
+###
+
+### 2.4: Invalid Login Test (should fail)
+POST http://localhost:8081/auth/login
+Content-Type: application/json
+
+{
+  "username": "nonexistent",
+  "password": "wrongpassword"
+}
+
+###
+
+#########################################################################
+# SECTION 3: EXTRACT TOKENS FOR AUTHENTICATED REQUESTS
+#########################################################################
+
+@userToken = {{loginUser.response.body.accessToken}}
+@providerToken = {{loginProvider.response.body.accessToken}}
+
+#########################################################################
+# SECTION 4: PROFILE ACCESS TESTS (Protected Endpoints)
+#########################################################################
+
+### 4.1: Get Basic User Profile (with custom attributes)
+GET http://localhost:8081/auth/profile
+Authorization: Bearer {{userToken}}
+
+###
+
+### 4.2: Get Provider Profile (with provider-specific fields)
+GET http://localhost:8081/auth/profile
+Authorization: Bearer {{providerToken}}
+
+###
+
+### 4.4: Get User by Username (using provider token)
+GET http://localhost:8081/auth/user/testuser
+Authorization: Bearer {{providerToken}}
+
+###
+
+### 4.6: Unauthorized Profile Access (should fail)
+GET http://localhost:8081/auth/profile
+
+###
+
+#########################################################################
+# SECTION 6: KEYCLOAK ADMIN TESTS (Optional - for debugging)
+#########################################################################
+
+### 6.1: Get Master Realm Admin Token
+# @name masterAuth
+POST http://localhost:8180/realms/master/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id=admin-cli&username=admin&password=admin
+
+###
+
+@masterToken = {{masterAuth.response.body.access_token}}
+
+### 6.2: List All Users in Microservices Realm
+# @name listUsers
+GET http://localhost:8180/admin/realms/microservices-ecosystem/users
+Authorization: Bearer {{masterToken}}
+
+###
+
+### 6.3: Get Specific User by Username
+GET http://localhost:8180/admin/realms/microservices-ecosystem/users?username=testuser&exact=true
+Authorization: Bearer {{masterToken}}
+
+###
+
+#########################################################################
+# SECTION 7: HEALTH CHECK
+#########################################################################
+
+### 7.1: Application Health Check
+GET http://localhost:8081/actuator/health
+
+###

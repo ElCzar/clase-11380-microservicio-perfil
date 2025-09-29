@@ -1,9 +1,9 @@
 package edu.microservicio.microservicio_perfil.service;
 
 import edu.microservicio.microservicio_perfil.dto.LoginRequest;
-import edu.microservicio.microservicio_perfil.dto.ProfileDetailsResponse;
 import edu.microservicio.microservicio_perfil.dto.ProviderRegistrationRequest;
 import edu.microservicio.microservicio_perfil.dto.TokenResponse;
+import edu.microservicio.microservicio_perfil.dto.UserDetailsResponse;
 import edu.microservicio.microservicio_perfil.dto.UserRegistrationRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +21,22 @@ import java.util.Base64;
 @Slf4j
 @RequiredArgsConstructor
 public class KeycloakService {
+
+    // Constants for attribute names
+    private static final String ATTR_USER_TYPE = "userType";
+    private static final String ATTR_AGE = "age";
+    private static final String ATTR_PHOTO = "photo";
+    private static final String ATTR_DESCRIPTION = "description";
+    private static final String ATTR_PHONE = "phone";
+    private static final String ATTR_WEB_PAGE = "webPage";
+    private static final String ATTR_SOCIAL_MEDIA = "socialMediaContact";
+    
+    // Constants for user properties
+    private static final String PROP_USERNAME = "username";
+    private static final String PROP_EMAIL = "email";
+    private static final String PROP_FIRST_NAME = "firstName";
+    private static final String PROP_LAST_NAME = "lastName";
+    private static final String PROP_ENABLED = "enabled";
 
     @Value("${keycloak.auth-server-url}")
     private String keycloakServerUrl;
@@ -53,7 +69,7 @@ public class KeycloakService {
             body.add("grant_type", "password");
             body.add("client_id", clientId);
             body.add("client_secret", clientSecret);
-            body.add("username", loginRequest.getUsername());
+            body.add(PROP_USERNAME, loginRequest.getUsername());
             body.add("password", loginRequest.getPassword());
             body.add("scope", "openid profile email");
 
@@ -96,24 +112,21 @@ public class KeycloakService {
                     userRequest.getEmail(),
                     userRequest.getFirstName(),
                     userRequest.getLastName(),
-                    userRequest.getPassword()
+                    userRequest.getPassword(),
+                    "USER",
+                    userRequest.getAge(),
+                    userRequest.getPhoto(),
+                    userRequest.getDescription(),
+                    null,
+                    null,
+                    null
             );
-
-            // Add user type attribute
-            Map<String, Object> attributes = new HashMap<>();
-            attributes.put("user_type", Arrays.asList("USER"));
-            attributes.put("age", Arrays.asList(String.valueOf(userRequest.getAge())));
-            attributes.put("photo", Arrays.asList(Base64.getEncoder().encodeToString(userRequest.getPhoto())));
-            attributes.put("description", Arrays.asList(userRequest.getDescription()));
-
-            userRepresentation.put("attributes", attributes);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(userRepresentation, headers);
 
             ResponseEntity<String> response = restTemplate.postForEntity(usersUrl, request, String.class);
 
             if (response.getStatusCode() == HttpStatus.CREATED) {
-                // Extract user ID from Location header and assign roles
                 String locationHeader = response.getHeaders().getFirst("Location");
                 if (locationHeader != null) {
                     String userId = locationHeader.substring(locationHeader.lastIndexOf("/") + 1);
@@ -147,26 +160,21 @@ public class KeycloakService {
                     providerRequest.getEmail(),
                     providerRequest.getFirstName(),
                     providerRequest.getLastName(),
-                    providerRequest.getPassword()
+                    providerRequest.getPassword(),
+                    "PROVIDER",
+                    providerRequest.getAge(),
+                    providerRequest.getPhoto(),
+                    providerRequest.getDescription(),
+                    providerRequest.getPhone(),
+                    providerRequest.getWebPage(),
+                    providerRequest.getSocialMediaContact()
             );
-
-            // Add provider-specific attributes
-            Map<String, Object> attributes = new HashMap<>();
-            attributes.put("user_type", Arrays.asList("PROVIDER"));
-            attributes.put("age", Arrays.asList(String.valueOf(providerRequest.getAge())));
-            attributes.put("photo", Arrays.asList(Base64.getEncoder().encodeToString(providerRequest.getPhoto())));
-            attributes.put("description", Arrays.asList(providerRequest.getDescription()));
-            attributes.put("phone", Arrays.asList(providerRequest.getPhone()));
-            attributes.put("web_page", Arrays.asList(providerRequest.getWebPage()));
-            attributes.put("social_media_contact", Arrays.asList(providerRequest.getSocialMediaContact()));
-            userRepresentation.put("attributes", attributes);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(userRepresentation, headers);
 
             ResponseEntity<String> response = restTemplate.postForEntity(usersUrl, request, String.class);
 
             if (response.getStatusCode() == HttpStatus.CREATED) {
-                // Extract user ID from Location header and assign roles
                 String locationHeader = response.getHeaders().getFirst("Location");
                 if (locationHeader != null) {
                     String userId = locationHeader.substring(locationHeader.lastIndexOf("/") + 1);
@@ -182,23 +190,54 @@ public class KeycloakService {
     }
 
     /**
-     * Create user representation for Keycloak API
-     * @param username
-     * @param email
-     * @param firstName
-     * @param lastName
-     * @param password
-     * @return Map representing the user
+     * Create user representation for Keycloak API with all attributes
+     * @param username User's username
+     * @param email User's email
+     * @param firstName User's first name
+     * @param lastName User's last name
+     * @param password User's password
+     * @param userType User type (USER/PROVIDER)
+     * @param age User's age
+     * @param photo User's photo as byte array
+     * @param description User's description
+     * @param phone User's phone (nullable, for providers)
+     * @param webPage User's web page (nullable, for providers)
+     * @param socialMediaContact User's social media (nullable, for providers)
+     * @return Map representing the complete user
      */
     private Map<String, Object> createUserRepresentation(String username, String email, 
-                                                        String firstName, String lastName, String password) {
+                                                        String firstName, String lastName, String password,
+                                                        String userType, int age, byte[] photo, String description,
+                                                        String phone, String webPage, String socialMediaContact) {
         Map<String, Object> userRepresentation = new HashMap<>();
-        userRepresentation.put("username", username);
-        userRepresentation.put("email", email);
-        userRepresentation.put("firstName", firstName);
-        userRepresentation.put("lastName", lastName);
-        userRepresentation.put("enabled", true);
+        
+        // Standard user properties
+        userRepresentation.put(PROP_USERNAME, username);
+        userRepresentation.put(PROP_EMAIL, email);
+        userRepresentation.put(PROP_FIRST_NAME, firstName);
+        userRepresentation.put(PROP_LAST_NAME, lastName);
+        userRepresentation.put(PROP_ENABLED, true);
         userRepresentation.put("emailVerified", true);
+
+        // Custom attributes must be nested under "attributes" for Keycloak API
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put(ATTR_USER_TYPE, Arrays.asList(userType));
+        attributes.put(ATTR_AGE, Arrays.asList(String.valueOf(age)));
+        attributes.put(ATTR_PHOTO, Arrays.asList(Base64.getEncoder().encodeToString(photo)));
+        attributes.put(ATTR_DESCRIPTION, Arrays.asList(description));
+        
+        // Provider-specific attributes (only if not null)
+        if (phone != null) {
+            attributes.put(ATTR_PHONE, Arrays.asList(phone));
+        }
+        if (webPage != null) {
+            attributes.put(ATTR_WEB_PAGE, Arrays.asList(webPage));
+        }
+        if (socialMediaContact != null) {
+            attributes.put(ATTR_SOCIAL_MEDIA, Arrays.asList(socialMediaContact));
+        }
+        
+        userRepresentation.put("attributes", attributes);
 
         // Set password
         Map<String, Object> credential = new HashMap<>();
@@ -225,8 +264,8 @@ public class KeycloakService {
             MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
             body.add("grant_type", "password");
             body.add("client_id", "admin-cli");
-            body.add("username", "admin"); // Configure admin credentials
-            body.add("password", "admin"); // Configure admin credentials
+            body.add("username", "admin"); // TODO: Configure admin credentials
+            body.add("password", "admin"); // TODO: Configure admin credentials
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
@@ -306,44 +345,14 @@ public class KeycloakService {
     }
 
     /**
-     * Validate token across microservices ecosystem
-     * @param token
-     * @return true if valid, false otherwise
-     */
-    public boolean validateToken(String token) {
-        try {
-            String introspectionUrl = String.format("%s/realms/%s/protocol/openid-connect/token/introspect", 
-                    keycloakServerUrl, realm);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-            headers.setBasicAuth(clientId, clientSecret);
-
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("token", token);
-
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-
-            ResponseEntity<Map> response = restTemplate.postForEntity(introspectionUrl, request, Map.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                return (Boolean) response.getBody().getOrDefault("active", false);
-            }
-        } catch (Exception e) {
-            log.error("Error validating token: {}", e.getMessage());
-        }
-        return false;
-    }
-
-    /**
-     * Get user info from token
+     * Get user info from token using Admin API to include custom attributes
      * @param token of the user
-     * @return ProfileDetailsResponse with user info
+     * @return UserDetailsResponse with user info including custom attributes
      */
-    public ProfileDetailsResponse getProfileDetails(String token) {
+    public UserDetailsResponse getProfileDetails(String token) {
         try {
-            String adminToken = getAdminToken();
-            String userInfoUrl = String.format("%s/admin/realms/%s/", 
+            // First, get basic user info from UserInfo endpoint to get the user ID
+            String userInfoUrl = String.format("%s/realms/%s/protocol/openid-connect/userinfo", 
                     keycloakServerUrl, realm);
 
             HttpHeaders headers = new HttpHeaders();
@@ -351,126 +360,111 @@ public class KeycloakService {
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(userInfoUrl, HttpMethod.GET, request, Map.class);
+            ResponseEntity<Map<String, Object>> userInfoResponse = restTemplate.exchange(
+                    userInfoUrl, HttpMethod.GET, request, 
+                    new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
 
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                ProfileDetailsResponse profileDetails = new ProfileDetailsResponse();
-                profileDetails.setUsername((String) response.getBody().get("preferred_username"));
-                profileDetails.setEmail((String) response.getBody().get("email"));
-                profileDetails.setFirstName((String) response.getBody().get("given_name"));
-                profileDetails.setLastName((String) response.getBody().get("family_name"));
-                profileDetails.setAge((Integer) response.getBody().get("age"));
-                profileDetails.setPhoto((String) response.getBody().get("picture"));
-                profileDetails.setDescription((String) response.getBody().get("description"));
-                return profileDetails;
+            if (userInfoResponse.getStatusCode() == HttpStatus.OK && userInfoResponse.getBody() != null) {
+                Map<String, Object> userInfo = userInfoResponse.getBody();
+                String username = (String) userInfo.get("preferred_username");
+                return getUserProfileByUsername(username);
             }
         } catch (Exception e) {
             log.error("Error fetching user info: {}", e.getMessage());
         }
-        return new ProfileDetailsResponse();
+        return new UserDetailsResponse();
     }
 
     /**
-     * Get user details from JWT token claims (recommended for performance)
-     * @param accessToken JWT access token
-     * @return User details from token claims
+     * Get complete user profile by username using Admin API
+     * @param adminToken Admin access token
+     * @param username Username to search for
+     * @return UserDetailsResponse with complete user profile
      */
-    public ProfileDetailsResponse getUserDetailsFromToken(String accessToken) {
+    public UserDetailsResponse getUserProfileByUsername(String username) {
         try {
-            // Decode JWT token without verification (for demo - in production use proper JWT library)
-            String[] tokenParts = accessToken.split("\\.");
-            if (tokenParts.length != 3) {
-                throw new RuntimeException("Invalid JWT token format");
-            }
-            
-            // Base64 decode the payload
-            String payload = new String(Base64.getDecoder().decode(tokenParts[1]));
-            
-            // Parse JSON manually or use Jackson ObjectMapper
-            // This is a simplified approach - you should use a proper JWT library
-            log.info("JWT Payload: {}", payload);
-            
-            return ProfileDetailsResponse.builder()
-                .message("User details extracted from JWT token")
-                .data(payload)
-                .build();
-            
-        } catch (Exception e) {
-            log.error("Error extracting user details from token: {}", e.getMessage());
-            throw new RuntimeException("Failed to extract user details from token", e);
-        }
-    }
+            String adminToken = getAdminToken();
 
-    /**
-     * Get user details from Keycloak UserInfo endpoint (standard OIDC)
-     * @param accessToken JWT access token
-     * @return User details from UserInfo endpoint
-     */
-    public ProfileDetailsResponse getUserDetailsFromUserInfo(String accessToken) {
-        try {
-            String userInfoUrl = String.format("%s/realms/%s/protocol/openid-connect/userinfo", 
-                    keycloakServerUrl, realm);
+            String searchUrl = String.format("%s/admin/realms/%s/users?username=%s&exact=true", 
+                    keycloakServerUrl, realm, username);
 
             HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
-
+            headers.setBearerAuth(adminToken);
             HttpEntity<String> request = new HttpEntity<>(headers);
 
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    userInfoUrl, HttpMethod.GET, request, 
-                    new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
+            ResponseEntity<List<Map<String, Object>>> searchResponse = restTemplate.exchange(
+                    searchUrl, HttpMethod.GET, request,
+                    new org.springframework.core.ParameterizedTypeReference<List<Map<String, Object>>>() {});
 
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Map<String, Object> userInfo = response.getBody();
+            if (searchResponse.getStatusCode() == HttpStatus.OK && 
+                searchResponse.getBody() != null && 
+                !searchResponse.getBody().isEmpty()) {
                 
-                return ProfileDetailsResponse.builder()
-                    .message("User details from UserInfo endpoint")
-                    .data(userInfo)
-                    .build();
+                Map<String, Object> userRepresentation = searchResponse.getBody().get(0);
+                return mapKeycloakToUserDetailsResponse(userRepresentation);
             }
         } catch (Exception e) {
-            log.error("Error getting user info: {}", e.getMessage());
-            throw new RuntimeException("Failed to get user info", e);
+            log.error("Error getting user profile by username: {}", e.getMessage());
         }
-        throw new RuntimeException("Failed to get user info");
+        return new UserDetailsResponse();
     }
 
     /**
-     * Introspect token to get user details (alternative method)
-     * @param accessToken JWT access token to introspect
-     * @return Token introspection response with user details
+     * Map Keycloak user representation to UserDetailsResponse
+     * @param userRepresentation from Keycloak Admin API
+     * @return UserDetailsResponse with mapped data including custom attributes
      */
-    public ProfileDetailsResponse introspectToken(String accessToken) {
-        try {
-            String introspectUrl = String.format("%s/realms/%s/protocol/openid-connect/token/introspect", 
-                    keycloakServerUrl, realm);
+    private UserDetailsResponse mapKeycloakToUserDetailsResponse(Map<String, Object> userRepresentation) {
+        UserDetailsResponse.UserDetailsResponseBuilder builder = UserDetailsResponse.builder();
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-            headers.setBasicAuth(clientId, clientSecret);
-
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("token", accessToken);
-
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    introspectUrl, HttpMethod.POST, request,
-                    new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Map<String, Object> introspectionResult = response.getBody();
-                
-                return ProfileDetailsResponse.builder()
-                    .message("Token introspection result")
-                    .data(introspectionResult)
-                    .build();
-            }
-        } catch (Exception e) {
-            log.error("Error introspecting token: {}", e.getMessage());
-            throw new RuntimeException("Failed to introspect token", e);
+        builder.username((String) userRepresentation.get(PROP_USERNAME));
+        builder.email((String) userRepresentation.get(PROP_EMAIL));
+        builder.firstName((String) userRepresentation.get(PROP_FIRST_NAME));
+        builder.lastName((String) userRepresentation.get(PROP_LAST_NAME));
+        
+        // Extract custom attributes from nested structure
+        Map<String, Object> attributes = (Map<String, Object>) userRepresentation.get("attributes");
+        if (attributes != null) {
+            builder.age(parseIntegerAttribute(attributes.get(ATTR_AGE)));
+            builder.photo(extractAttributeValue(attributes.get(ATTR_PHOTO)));
+            builder.description(extractAttributeValue(attributes.get(ATTR_DESCRIPTION)));
+            builder.phone(extractAttributeValue(attributes.get(ATTR_PHONE)));
+            builder.webPage(extractAttributeValue(attributes.get(ATTR_WEB_PAGE)));
+            builder.socialMediaContact(extractAttributeValue(attributes.get(ATTR_SOCIAL_MEDIA)));
         }
-        throw new RuntimeException("Failed to introspect token");
+        
+        builder.message("Complete user profile from Keycloak");
+
+        return builder.build();
+    }
+
+    /**
+     * Extract string value from Keycloak attribute (which is stored as a list)
+     * @param attributeValue from Keycloak attributes map
+     * @return String value or null
+     */
+    private String extractAttributeValue(Object attributeValue) {
+        if (attributeValue instanceof List<?> && !((List<?>) attributeValue).isEmpty()) {
+            return (String) ((List<?>) attributeValue).get(0);
+        }
+        return null;
+    }
+
+    /**
+     * Extract and parse integer value from Keycloak attribute
+     * @param attributeValue from Keycloak attributes map
+     * @return Integer value or null
+     */
+    private Integer parseIntegerAttribute(Object attributeValue) {
+        String stringValue = extractAttributeValue(attributeValue);
+        if (stringValue != null) {
+            try {
+                return Integer.parseInt(stringValue);
+            } catch (NumberFormatException e) {
+                log.warn("Could not parse age attribute: {}", stringValue);
+            }
+        }
+        return null;
     }
 
     /**

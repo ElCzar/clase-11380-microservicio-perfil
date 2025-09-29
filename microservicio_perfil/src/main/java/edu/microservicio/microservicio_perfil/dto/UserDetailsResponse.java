@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ProfileDetailsResponse {
+public class UserDetailsResponse {
     private String username;
     private String email;
     private String firstName;
@@ -18,5 +18,7 @@ public class ProfileDetailsResponse {
     private String photo;
     private String description;
     private String message;
-    private Object data; // Generic field for different response types
+    private String phone;
+    private String webPage;
+    private String socialMediaContact;
 }
