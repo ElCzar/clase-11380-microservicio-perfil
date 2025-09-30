@@ -60,6 +60,11 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Spring Boot Actuator for health checks and monitoring -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 		<!-- Keycloak OAuth2 Resource Server -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
