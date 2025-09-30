@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3.3-0
+    image: elczar/clase-11380-keycloak:1.0
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -10,8 +8,9 @@ services:
       - "8180:8080"
     command:
       - start-dev
+      - --import-realm
     volumes:
-      - keycloak_data:/opt/keycloak/data
+      - keycloak_data_final:/opt/keycloak/data
 
 volumes:
-  keycloak_data:
+  keycloak_data_final:
