@@ -11,11 +11,6 @@ services:
       - --import-realm
     volumes:
       - keycloak_data:/opt/keycloak/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   microservicio-perfil:
     image: elczar/clase-11380-microservicio-perfil:1.0
@@ -28,14 +23,8 @@ services:
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/microservices-ecosystem/protocol/openid-connect/certs
       - KEYCLOAK_AUTH_SERVER_URL=http://keycloak:8080
     depends_on:
-      keycloak:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - keycloak
+    restart: unless-stopped
 
 volumes:
   keycloak_data:
