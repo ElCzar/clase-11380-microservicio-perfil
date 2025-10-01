@@ -40,7 +40,7 @@ management:
 keycloak:
     realm: microservices-ecosystem
     auth-server-url: http://localhost:8180
-    ssl-required: external
+    ssl-required: none
     resource: perfil-service
     credentials:
         secret: XhzE490FVJwoJ3OdLlyyqpDyIaf1lgVe

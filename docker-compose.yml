@@ -4,11 +4,15 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: true
+      KC_HOSTNAME_STRICT: false
     ports:
       - "8180:8080"
     command:
       - start-dev
       - --import-realm
+      - --http-enabled=true
+      - --hostname-strict=false
     volumes:
       - keycloak_data:/opt/keycloak/data
 
