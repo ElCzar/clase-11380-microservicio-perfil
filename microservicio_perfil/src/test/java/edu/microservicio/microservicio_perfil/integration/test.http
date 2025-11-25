@@ -56,7 +56,7 @@ Content-Type: application/json
 
 ### 2.1: Login with Basic User
 # @name loginUser
-POST http://localhost:8080/microservicio-perfil/auth/login
+POST http://localhost:8081/auth/login
 Content-Type: application/json
 
 {

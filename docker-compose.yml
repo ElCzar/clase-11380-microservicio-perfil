@@ -1,6 +1,7 @@
 services:
   keycloak:
     image: elczar/clase-11380-keycloak:1.0
+    container_name: keycloak-app
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -15,6 +16,13 @@ services:
       - --hostname-strict=false
     volumes:
       - keycloak_data:/opt/keycloak/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   microservicio-perfil:
     image: elczar/clase-11380-microservicio-perfil:1.0
@@ -27,8 +35,15 @@ services:
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/microservices-ecosystem/protocol/openid-connect/certs
       - KEYCLOAK_AUTH_SERVER_URL=http://keycloak:8080
     depends_on:
-      - keycloak
+      keycloak:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
 
 volumes:
   keycloak_data:
