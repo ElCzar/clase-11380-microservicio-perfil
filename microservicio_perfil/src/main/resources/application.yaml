@@ -6,8 +6,8 @@ spring:
         oauth2:
             resourceserver:
                 jwt:
-                    issuer-uri: http://localhost:8180/realms/microservices-ecosystem
-                    jwk-set-uri: http://localhost:8180/realms/microservices-ecosystem/protocol/openid-connect/certs
+                    issuer-uri: http://keycloak:8180/realms/microservices-ecosystem
+                    jwk-set-uri: http://keycloak:8180/realms/microservices-ecosystem/protocol/openid-connect/certs
 
 # Server Configuration
 server:
@@ -17,7 +17,7 @@ server:
 eureka:
     client:
         service-url:
-            defaultZone: http://localhost:8761/eureka/
+            defaultZone: http://10.43.103.229:8761/eureka/
         register-with-eureka: true
     instance:
         prefer-ip-address: true
@@ -39,7 +39,7 @@ management:
 # Keycloak Configuration
 keycloak:
     realm: microservices-ecosystem
-    auth-server-url: http://localhost:8180
+    auth-server-url: http://keycloak:8180
     ssl-required: none
     resource: perfil-service
     credentials:
