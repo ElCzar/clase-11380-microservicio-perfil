@@ -20,8 +20,11 @@ eureka:
             defaultZone: http://10.43.103.229:8761/eureka/
         register-with-eureka: true
     instance:
-        ip-address: 10.43.103.30
         prefer-ip-address: true
+        ip-address: 10.43.103.30
+        non-secure-port: 8081
+        instance-id: 10.43.103.30:8081
+        hostname: 10.43.103.30
 
 # Management endpoints configuration
 management:
