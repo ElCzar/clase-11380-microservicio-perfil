@@ -20,6 +20,7 @@ eureka:
             defaultZone: http://10.43.103.229:8761/eureka/
         register-with-eureka: true
     instance:
+        ip-address: 10.43.103.30
         prefer-ip-address: true
 
 # Management endpoints configuration
